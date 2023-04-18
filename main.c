@@ -35,7 +35,7 @@ const char heat_visuals[]       = {'7', '6', '5', '4', '3', '2', '1'};
 
 
 
-// PROTOTYPE FUNCTIONS
+// FUNCTION DECLARATION
 void    printArray(float field[][NODES_X]);                                         // This prints the array
 void    printRawArray(float field[][NODES_X]);
 void    copyArray(float copyField[][NODES_X], float pasteField[][NODES_X]);         // This copies the array from one to another
@@ -211,6 +211,7 @@ int main()                                                                      
 }
 
 
+// FUNCTION DEFINITIONS
 void printArray(float field[][NODES_X]) {                                           // To print array    
     for (int i = 0; i < NODES_Y; i++) {                                             //  // For loop for element
         for (int j = 0; j < NODES_X; j++) {
