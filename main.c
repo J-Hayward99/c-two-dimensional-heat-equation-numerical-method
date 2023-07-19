@@ -4,7 +4,8 @@
 #include <string.h>
 #include <windows.h>                                                                // Needed for sleep command on Windows
 #include <conio.h>                                                                  // Needed for terminal commands on Windows
-
+#include <wchar.h>
+#include <locale.h>
 
 // CONSTANTS
 // Simulation Starting Parameters
@@ -14,6 +15,7 @@ const int NODES_Y                   = 15;                                       
 
 const int SHOW_STARTING_CONDITIONS  = FALSE;
 const int SHOW_RAW_CONDITIONS       = FALSE;
+const int SHOW_BLOCK_VISUALS        = FALSE;
 
 
 // Thermal Parameters
@@ -42,7 +44,13 @@ const float FINAL_TIME          = 600.0f;                                       
 
 
 // LOOK UP TABLES
-const char heat_visuals[]       = {'7', '6', '5', '4', '3', '2', '1'};
+const char      heat_visuals[]      = {'7', '6', '5', '4', '3', '2', '1'};
+const wchar_t   block_visuals[]     = {
+    L'\u2588', 
+    L'\u2593', 
+    L'\u2592', 
+    L'\u2591'
+};
 
 
 
@@ -52,17 +60,20 @@ int     numberOfPoints  = 0;
 
 
 // FUNCTION DECLARATION
-void    printArray(float field[][NODES_X]);                                         // This prints the array
-void    printRawArray(float field[][NODES_X]);
-void    showArrayStats(float sum, float initialEnergy);
-float   sumArray(float field[][NODES_X]);                                           // This totals the values of the field, used to calculate the total energy of the system (for error checking)
-char    heatVisualsReturn(float value);                                             // This returns the LUT values
+void    printArray          (float field[][NODES_X]);                               // This prints the array
+void    printBlockArray     (float field[][NODES_X]);                               // This prints the array
+void    printRawArray       (float field[][NODES_X]);
+void    showArrayStats      (float sum, float initialEnergy);
+float   sumArray            (float field[][NODES_X]);                               // This totals the values of the field, used to calculate the total energy of the system (for error checking)
+char    heatVisualsReturn   (float value);                                          // This returns the LUT values
+wchar_t heatBlockReturn     (float value);                                          // This returns the LUT values
 
 
 
 int main()                                                                          // Script start
 {
     // INIT SECTION
+    setlocale(LC_ALL, "");
     printf("Hello world!\n");                                                       //  // Sanity test
     int frameCount = 1;                                                             //  // Frame counter init
     char stability = DELTA_TIME < (D_SPACE_SQR/(4*ALPHA));
@@ -172,14 +183,17 @@ int main()                                                                      
     {                                                                               //  // This is the while loop
         // INFORMATION
         printf("\n\nIteration: %d\tTime: %4.3f\n", frameCount, time);               //  // Makes sure that the loop is working
-        if (!SHOW_RAW_CONDITIONS)
+        if (SHOW_BLOCK_VISUALS)
         {
-            system("cls");
+            printBlockArray(a_newField);
+        }
+        else if (!SHOW_RAW_CONDITIONS)
+        {
             printArray(a_newField);                                                 //  // Prints the array
+
         }
         else
         {
-            system("cls");
             printRawArray(a_newField);                                              //  // Prints the array
         }
 
@@ -304,15 +318,47 @@ void printArray(float field[][NODES_X])
             {
                 printf("[ %c, ", heatVisualsReturn(field[i][j]));
             }                                                                       //  // If first element, include the left bracket
-            
             else if (j == (NODES_X - 1)) 
             {
                 printf("%c ]\n", heatVisualsReturn(field[i][j]));
             }                                                                       //  // Else if the element is the last, include the right bracket
-            
             else 
             {
                 printf("%c, ", heatVisualsReturn(field[i][j]));
+            }                                                                       //  // Otherwise do the normal format
+        }
+    }
+}
+
+
+void printBlockArray(float field[][NODES_X]) 
+{                                                                                   // To print array    
+    for (int i = 0; i < NODES_Y; i++) 
+    {                                                                               //  // For loop for element
+        for (int j = 0; j < NODES_X; j++) 
+        {
+            // NEGATIVE VALUE HANDLING
+            if (field[i][j] < 0.0f) field[i][j] = 0.0f;                             //  // Avoids negative numbers due to small floating point errors
+            
+            // VERTICAL CHECK
+            if (NODES_X == 1) 
+            {
+                wprintf(L"[ %lc ]\n", heatBlockReturn(field[i][j]));
+                continue;
+            }                                                                       //  // Required if Width is 1
+
+            // DISPLAY DEVELOPMENT
+            if (j == 0) 
+            {
+                wprintf(L"[ %lc", heatBlockReturn(field[i][j]));
+            }                                                                       //  // If first element, include the left bracket
+            else if (j == (NODES_X - 1)) 
+            {
+                wprintf(L"%lc ]\n", heatBlockReturn(field[i][j]));
+            }                                                                       //  // Else if the element is the last, include the right bracket
+            else 
+            {
+                wprintf(L"%lc", heatBlockReturn(field[i][j]));
             }                                                                       //  // Otherwise do the normal format
         }
     }
@@ -331,39 +377,49 @@ void printRawArray(float field[][NODES_X])
             // VERTICAL CHECK
             if (NODES_X == 1) 
             {
-                printf("[ %-6.2f ]\n", field[i][j]);
+                printf("[ %-6.1f ]\n", field[i][j]);
                 continue;
             }                                                                       //  // Same as normal printArray
 
             // DISPLAY DEVELOPMENT
             if (j == 0) 
             {
-                printf("[ %-6.2f, ", field[i][j]);
+                printf("[ %-6.1f, ", field[i][j]);
             }                                                                       //  // If first element, include the left bracket
-            
             else if (j == (NODES_X - 1)) 
             {
-                printf("%-6.2f ]\n", field[i][j]);
+                printf("%-6.1f ]\n", field[i][j]);
             }                                                                       //  // Else if the element is the last, include the right bracket
-            
             else 
             {
-                printf("%-6.2f, ", field[i][j]);
+                printf("%-6.1f, ", field[i][j]);
             }                                                                       //  // Otherwise do the normal format
         }
     }
 }
 
 
-
 void showArrayStats(float sum, float initialEnergy) 
 {
     float deviation = 0.0f;                                                         //  // Inits the percent deviation
     deviation = fabs((sum - initialEnergy) / initialEnergy);                        //  // Percent difference of energy
-
+    
+    float averageEnergyDensity = totalEnergy / (NODES_X*NODES_Y);                   //  // This is for when there's a bit of energy
+    
+    
     // PRINT
     printf("\nEnergy: %-5f, deviation: %%%6.3f\n", round(sum), deviation*100);      //  // Prints the actual energy
-    printf("Intended Energy: %5.4f\n", initialEnergy);                              //  // Print the theoretical energy
+    printf("Intended Energy: %5.4f, Average Energy Density: %5.4f",
+        initialEnergy, averageEnergyDensity);                                       //  // Print the theoretical energy
+    
+    if (SHOW_BLOCK_VISUALS)
+    {
+        wprintf(L" (%lc)\n", heatBlockReturn(averageEnergyDensity));
+    }
+    else
+    {
+        printf(" (%c)\n", heatVisualsReturn(averageEnergyDensity));
+    }
 }
 
 
@@ -384,7 +440,7 @@ char heatVisualsReturn(float value)
 {
     float maxValue = (totalEnergy) / numberOfPoints;                                //  // This can be calculated
 
-    float averageEnergyDensity = totalEnergy / NODES_X*NODES_Y;                     //  // This is for when there's a bit of energy
+    float averageEnergyDensity = totalEnergy / (NODES_X*NODES_Y);                   //  // This is for when there's a bit of energy
 
     // CHECK
     if (value >  (maxValue/2))              {return heat_visuals[0];}               //  // I'm aware this looks messy
@@ -399,6 +455,24 @@ char heatVisualsReturn(float value)
     
     if (value >= 1.0f)                      {return '0';}
     if (value >= 0.5f)                      {return 'x';}                           //  // Small case
+    if (value >= 0.0f)                      {return '.';}                           //  // Negligible case
+    else                                    {return 'E';}                           //  // Error case
+}
+
+wchar_t heatBlockReturn(float value) 
+{
+    float maxValue = (totalEnergy) / numberOfPoints;                                //  // This can be calculated
+
+    float averageEnergyDensity = totalEnergy / (NODES_X*NODES_Y);                   //  // This is for when there's a bit of energy
+
+    // CHECK
+    if (value >  (maxValue/2))              {return block_visuals[0];}              //  // I'm aware this looks messy
+    if (value >  (maxValue/40))             {return block_visuals[1];}              //  // Switch cases don't work for floats
+    if (value >  (maxValue/80))             {return block_visuals[2];}              //  // So had to do this
+    
+    if (value >  (averageEnergyDensity))    {return '#';}                           //  // End State
+    
+    if (value >= 0.5f)                      {return block_visuals[3];}              //  // Small case
     if (value >= 0.0f)                      {return '.';}                           //  // Negligible case
     else                                    {return 'E';}                           //  // Error case
 }
