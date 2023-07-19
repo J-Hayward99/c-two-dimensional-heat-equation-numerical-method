@@ -112,7 +112,8 @@ int main()                                                                      
             {
                 a_startField[i][j]  = BAR_L_END_TEMP;
             }  
-            else {
+            else 
+            {
                 a_startField[i][j]  = BAR_AMBIENT_TEMP;
             }
 
