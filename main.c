@@ -1,11 +1,20 @@
 // INCLUDES
 #include <stdio.h>                                                                  // Needed for printing
 #include <math.h>                                                                   // Used for the fabs() function
-#include <string.h>
+#include <string.h>                                                                 // QoL for Strings
 #include <windows.h>                                                                // Needed for sleep command on Windows
 #include <conio.h>                                                                  // Needed for terminal commands on Windows
-#include <wchar.h>
-#include <locale.h>
+#include <wchar.h>                                                                  // Needed for block visuals
+#include <locale.h>                                                                 // Also needed for block blocks visuals
+
+
+// ENUMS
+enum Visuals {
+    VISUAL_RAW,
+    VISUAL_BLOCKS,
+    VISUAL_HEATMAP
+};
+
 
 // CONSTANTS
 // Simulation Starting Parameters
@@ -14,9 +23,7 @@ const int NODES_X                   = 15;                                       
 const int NODES_Y                   = 15;                                           // Manual array size
 
 const int SHOW_STARTING_CONDITIONS  = FALSE;
-const int SHOW_RAW_CONDITIONS       = FALSE;
-const int SHOW_BLOCK_VISUALS        = FALSE;
-
+const int VISUAL_SETTING            = VISUAL_HEATMAP;
 
 // Thermal Parameters
 const float ALPHA               = 0.00001f;                                         // The thermal conductivity K (or alpha)
@@ -29,13 +36,11 @@ const float BAR_AMBIENT_TEMP    = 0.0f;                                         
 const float BAR_L_END_TEMP      = 0.0f;                                             // Temp at N=N_end
 
 // Points of Temperature
-struct point
+struct Point
 {
     const int   COORDS[2];
     const float TEMPERATURE_KELVIN;
 };
-
-
 
 // Time Limits
 const float DELTA_TIME          = 0.040f;                                           // Time step
@@ -60,32 +65,34 @@ int     numberOfPoints  = 0;
 
 
 // FUNCTION DECLARATION
-void    printArray          (float field[][NODES_X]);                               // This prints the array
-void    printBlockArray     (float field[][NODES_X]);                               // This prints the array
-void    printRawArray       (float field[][NODES_X]);
+// Print Arrays
+void    printArray          (float* field);
+void    printBlockArray     (float* a_field);
+void    printRawArray       (float* a_field);
+
+// Array Helpers
 void    showArrayStats      (float sum, float initialEnergy);
-float   sumArray            (float field[][NODES_X]);                               // This totals the values of the field, used to calculate the total energy of the system (for error checking)
-char    heatVisualsReturn   (float value);                                          // This returns the LUT values
-wchar_t heatBlockReturn     (float value);                                          // This returns the LUT values
+float   sumArray            (float* a_field);
+
+// LUT Returns
+char    heatVisualsReturn   (float value);
+wchar_t heatBlockReturn     (float value);
 
 
 
-int main()                                                                          // Script start
+int main()
 {
     // INIT SECTION
     setlocale(LC_ALL, "");
-    printf("Hello world!\n");                                                       //  // Sanity test
-    int frameCount = 1;                                                             //  // Frame counter init
+    int frameCount = 1;
+    
+    // CHECKS
     char stability = DELTA_TIME < (D_SPACE_SQR/(4*ALPHA));
-    if (stability == 0)
-    {
-        printf("UNSTABLE SIMULATION");
-        return 1;
-    }
+    if (stability == 0) {printf("UNSTABLE SIMULATION"); return 1;}
 
 
     // INITIAL CONDITIONS ARRAY
-    float a_startField[NODES_Y][NODES_X];                                           //  // Initiates the field
+    float a_startField[NODES_Y][NODES_X];                                           //  // Base field
     
     for (int i = 0; i < NODES_Y; i++) 
     {
@@ -120,24 +127,24 @@ int main()                                                                      
     }
     
     // POINTS AND STATS
-    struct point a_Points[] = 
+    // Add Points
+    struct Point a_Points[] = 
     {
-        {{NODES_Y/3, 3}                     , 100.0f},
-        {{NODES_Y/3, (NODES_X - 4)}         , 100.0f},
-        {{2*NODES_Y/3, 3}                   , 100.0f},
-        {{2*NODES_Y/3, (NODES_X - 4)}       , 100.0f},
-        {{(2*NODES_Y/3) + 1, (NODES_X/2)}   , 100.0f}
-        
-
+        {{NODES_Y/3             , 3}                , 100.0f},
+        {{NODES_Y/3             , (NODES_X - 4)}    , 100.0f},
+        {{2*NODES_Y/3           , 3}                , 100.0f},
+        {{2*NODES_Y/3           , (NODES_X - 4)}    , 100.0f},
+        {{(2*NODES_Y/3) + 1     , (NODES_X/2)}      , 100.0f}
     };                                                                              //  // INSERT POINTS HERE
     
+    // Insert Points
     numberOfPoints  = sizeof(a_Points)/sizeof(a_Points[0]);
-
+    
     for (int i = 0; i < numberOfPoints; i++)
     {
-        int point_x         = a_Points[i].COORDS[0];
-        int point_y         = a_Points[i].COORDS[1];
-        float temperature   = a_Points[i].TEMPERATURE_KELVIN;
+        int point_x                     = a_Points[i].COORDS[0];
+        int point_y                     = a_Points[i].COORDS[1];
+        float temperature               = a_Points[i].TEMPERATURE_KELVIN;
         
         a_startField[point_x][point_y]  = temperature;
         totalEnergy                     += temperature;
@@ -145,16 +152,16 @@ int main()                                                                      
 
     
     // FIELDS
-    printArray(a_startField);
-    float initialEnergy = sumArray(a_startField);                                   //  // What is the starting energy
+    printArray(&a_startField[0][0]);
+    float initialEnergy = sumArray(&a_startField[0][0]);
 
 
     // New Field
-    float a_newField[NODES_X][NODES_Y];                                             //  // This handles the frame of timestep k+1
+    float a_newField[NODES_X][NODES_Y];                                             //  // Frame of timestep k+1
     memcpy(&a_newField, &a_startField, sizeof(int)*NODES_X*NODES_Y);
 
     // Current Field
-    float a_curField[NODES_X][NODES_Y];                                             //  // This handles the frame of timestep k
+    float a_curField[NODES_X][NODES_Y];                                             //  // Frame of timestep k
     memcpy(&a_curField, &a_startField, sizeof(int)*NODES_X*NODES_Y);
     
     
@@ -171,35 +178,35 @@ int main()                                                                      
     
 
     // TIME COUNTER
-    float time = 0.0f;                                                              //  // Time of sim init
+    float time = 0.0f;
     
 
     // CLEARS TERMINAL OF OTHER INFO
-    system("cls");                                                                  //  // Clears screen
+    system("cls");
 
 
     // LOOP SECTION
     while(time < FINAL_TIME) 
-    {                                                                               //  // This is the while loop
+    {
         // INFORMATION
-        printf("\n\nIteration: %d\tTime: %4.3f\n", frameCount, time);               //  // Makes sure that the loop is working
-        if (SHOW_BLOCK_VISUALS)
+        printf("\n\nIteration: %d\tTime: %4.3f\n", frameCount, time);
+        switch (VISUAL_SETTING)
         {
-            printBlockArray(a_newField);
-        }
-        else if (!SHOW_RAW_CONDITIONS)
-        {
-            printArray(a_newField);                                                 //  // Prints the array
-
-        }
-        else
-        {
-            printRawArray(a_newField);                                              //  // Prints the array
+            case VISUAL_HEATMAP:
+                printArray(&a_newField[0][0]);
+                break;
+            
+            case VISUAL_BLOCKS:
+                printArray(&a_newField[0][0]);
+                break;
+            
+            default:
+                printRawArray(&a_newField[0][0]);
         }
 
 
         // ENERGY SANITY CHECK
-        float energy = sumArray(a_newField);                                        //  // Prints the total energy of the system
+        float energy = sumArray(&a_newField[0][0]);                                 //  // Total energy of the system
         showArrayStats(energy, initialEnergy);
         
 
@@ -208,7 +215,7 @@ int main()                                                                      
         {
             printf("\n======================\n");
             printf("Starting Conditions:\n");
-            printArray(a_startField);                                                   //  // Display of the initial conditions
+            printArray(&a_startField[0][0]);
         }
         
 
@@ -217,48 +224,58 @@ int main()                                                                      
         
 
         // BEHIND-THE-SCENE STUFF
-        frameCount++;                                                               //  // Increments the counter
-        Sleep(SIM_TIME_DELAY_MILLI);                                                //  // Delay between refreshes
-        system("cls");                                                              //  // Clears screen
-        time += DELTA_TIME;                                                         //  // Increments the time frame
+        frameCount++;
+        Sleep(SIM_TIME_DELAY_MILLI);
+        system("cls");
+        time += DELTA_TIME;
 
 
         // CALCULATION LOOP
         for (int i = 0; i < NODES_Y; i++) 
-        {                                                                           //  // Iterates through the array
+        {
             for (int j = 0; j < NODES_X; j++) 
             {
                 // BOUNDARIES LEFT-RIGHT
+                // Left Wall
                 if (j == 0) 
-                {                                                                   //  // Left wall
+                {
                     aveTempLeft     = a_curField[i][j];                             //  // Ghost node = current node
                     aveTempRight    = a_curField[i][j+1];
                 }
+
+                // Right Wall
                 else if (j == (NODES_X-1)) 
-                {                                                                   //  // Right wall
+                {
                     aveTempLeft     = a_curField[i][j-1];
                     aveTempRight    = a_curField[i][j];                             //  // Ghost node = current node
                 }
-                else 
-                {                                                                   //  // Remaining elements
+
+                // Remaining Elements (Middle)
+                else
+                {
                     aveTempLeft     = a_curField[i][j-1];
                     aveTempRight    = a_curField[i][j+1];
                 }
 
 
                 //BOUNDARIES UP-DOWN
+                // Top Wall
                 if (i == 0) 
-                {                                                                   //  // Top wall
+                {
                     aveTempAbove    = a_curField[i][j];                             //  // Ghost node = current node
                     aveTempBelow    = a_curField[i+1][j];
                 }
+
+                // Bottom Wall
                 else if (i == (NODES_Y-1)) 
-                {                                                                   //  // Bottom wall
+                {
                     aveTempAbove    = a_curField[i-1][j];
                     aveTempBelow    = a_curField[i][j];                             //  // Ghost node = current node
                 }
+
+                // Remaining Elements (Middle)
                 else 
-                {                                                                   //  // Remaining elements
+                {
                     aveTempAbove    = a_curField[i-1][j];
                     aveTempBelow    = a_curField[i+1][j];
                 }
@@ -278,122 +295,130 @@ int main()                                                                      
 
 
                 // CALCULATIONS
+                // Temperature Driver
                 dTi_dt = 
                       ( aveTempLeft     + aveTempRight 
                     +   aveTempAbove    + aveTempBelow ) 
-                    / ( D_SPACE_SQR ) * ALPHA * DELTA_TIME;                         //  // Driver of the temp
+                    / ( D_SPACE_SQR ) * ALPHA * DELTA_TIME;
                 
-                coefficient = 1 - (4*DELTA_TIME*ALPHA/D_SPACE_SQR);                 //  // Handles the current value
+                // Coefficient
+                coefficient = 1 - (4*DELTA_TIME*ALPHA/D_SPACE_SQR);
 
 
                 // ARRAY UPDATE
-                a_newField[i][j] = coefficient * a_curField[i][j] + dTi_dt;         //  // Last value + temperature difference times the time difference
+                a_newField[i][j] = coefficient * a_curField[i][j] + dTi_dt;         //  // Last value + (temperature difference * the time difference)
             }
         }
     }
 
-    return 0;                                                                       //  // Required
+    return 0;
 }
 
 
 // FUNCTION DEFINITIONS
-void printArray(float field[][NODES_X]) 
-{                                                                                   // To print array    
+void printArray(float* a_field) 
+{
     for (int i = 0; i < NODES_Y; i++) 
-    {                                                                               //  // For loop for element
+    {
         for (int j = 0; j < NODES_X; j++) 
         {
+            float value = *(a_field + i * NODES_X + j);
+            
             // NEGATIVE VALUE HANDLING
-            if (field[i][j] < 0.0f) field[i][j] = 0.0f;                             //  // Avoids negative numbers due to small floating point errors
+            if (value < 0.0f) value = 0.0f;                                         //  // Avoids negative numbers due to small floating point errors
             
             // VERTICAL CHECK
             if (NODES_X == 1) 
             {
-                printf("[ %c ]\n", heatVisualsReturn(field[i][j]));
+                printf("[ %c ]\n", heatVisualsReturn(value));
                 continue;
-            }                                                                       //  // Required if Width is 1
+            }
 
             // DISPLAY DEVELOPMENT
             if (j == 0) 
             {
-                printf("[ %c, ", heatVisualsReturn(field[i][j]));
-            }                                                                       //  // If first element, include the left bracket
+                printf("[ %c, ", heatVisualsReturn(value));
+            }
             else if (j == (NODES_X - 1)) 
             {
-                printf("%c ]\n", heatVisualsReturn(field[i][j]));
-            }                                                                       //  // Else if the element is the last, include the right bracket
+                printf("%c ]\n", heatVisualsReturn(value));
+            }
             else 
             {
-                printf("%c, ", heatVisualsReturn(field[i][j]));
-            }                                                                       //  // Otherwise do the normal format
+                printf("%c, ", heatVisualsReturn(value));
+            }
         }
     }
 }
 
 
-void printBlockArray(float field[][NODES_X]) 
-{                                                                                   // To print array    
+void printBlockArray(float* a_field) 
+{
     for (int i = 0; i < NODES_Y; i++) 
-    {                                                                               //  // For loop for element
+    {
         for (int j = 0; j < NODES_X; j++) 
         {
+            float value = *(a_field + i * NODES_X + j);
+
             // NEGATIVE VALUE HANDLING
-            if (field[i][j] < 0.0f) field[i][j] = 0.0f;                             //  // Avoids negative numbers due to small floating point errors
-            
+            if (value < 0.0f) value = 0.0f;
+
             // VERTICAL CHECK
             if (NODES_X == 1) 
             {
-                wprintf(L"[ %lc ]\n", heatBlockReturn(field[i][j]));
+                wprintf(L"[ %lc ]\n", heatBlockReturn(value));
                 continue;
-            }                                                                       //  // Required if Width is 1
+            }
 
             // DISPLAY DEVELOPMENT
             if (j == 0) 
             {
-                wprintf(L"[ %lc", heatBlockReturn(field[i][j]));
-            }                                                                       //  // If first element, include the left bracket
+                wprintf(L"[ %lc", heatBlockReturn(value));
+            }
             else if (j == (NODES_X - 1)) 
             {
-                wprintf(L"%lc ]\n", heatBlockReturn(field[i][j]));
-            }                                                                       //  // Else if the element is the last, include the right bracket
+                wprintf(L"%lc ]\n", heatBlockReturn(value));
+            }
             else 
             {
-                wprintf(L"%lc", heatBlockReturn(field[i][j]));
-            }                                                                       //  // Otherwise do the normal format
+                wprintf(L"%lc", heatBlockReturn(value));
+            }
         }
     }
 }
 
 
-void printRawArray(float field[][NODES_X]) 
-{                                                                                   // To print array    
+void printRawArray(float* a_field) 
+{
     for (int i = 0; i < NODES_Y; i++) 
-    {                                                                               //  // For loop for element
+    {
         for (int j = 0; j < NODES_X; j++) 
         {
+            float value = *(a_field + i * NODES_X + j);
+
             // NEGATIVE VALUE HANDLING
-            if (field[i][j] < 0.0f) field[i][j] = 0.0f;                             //  // Avoids negative numbers due to small floating point errors
+            if (value < 0.0f) value = 0.0f;
             
             // VERTICAL CHECK
             if (NODES_X == 1) 
             {
-                printf("[ %-6.1f ]\n", field[i][j]);
+                printf("[ %-6.1f ]\n", value);
                 continue;
-            }                                                                       //  // Same as normal printArray
+            }
 
             // DISPLAY DEVELOPMENT
             if (j == 0) 
             {
-                printf("[ %-6.1f, ", field[i][j]);
-            }                                                                       //  // If first element, include the left bracket
+                printf("[ %-6.1f, ", value);
+            }
             else if (j == (NODES_X - 1)) 
             {
-                printf("%-6.1f ]\n", field[i][j]);
-            }                                                                       //  // Else if the element is the last, include the right bracket
+                printf("%-6.1f ]\n", value);
+            }
             else 
             {
-                printf("%-6.1f, ", field[i][j]);
-            }                                                                       //  // Otherwise do the normal format
+                printf("%-6.1f, ", value);
+            }
         }
     }
 }
@@ -401,18 +426,20 @@ void printRawArray(float field[][NODES_X])
 
 void showArrayStats(float sum, float initialEnergy) 
 {
-    float deviation = 0.0f;                                                         //  // Inits the percent deviation
-    deviation = fabs((sum - initialEnergy) / initialEnergy);                        //  // Percent difference of energy
-    
-    float averageEnergyDensity = totalEnergy / (NODES_X*NODES_Y);                   //  // This is for when there's a bit of energy
+    float deviation             = fabs((sum - initialEnergy) / initialEnergy);      //  // Percent difference of energy
+    float averageEnergyDensity  = totalEnergy / (NODES_X*NODES_Y);                  //  // This is for when there's a bit of energy
     
     
     // PRINT
+    // Main
     printf("\nEnergy: %-5f, deviation: %%%6.3f\n", round(sum), deviation*100);      //  // Prints the actual energy
-    printf("Intended Energy: %5.4f, Average Energy Density: %5.4f",
-        initialEnergy, averageEnergyDensity);                                       //  // Print the theoretical energy
+    printf(
+        "Intended Energy: %5.4f, Average Energy Density: %5.4f",
+        initialEnergy, averageEnergyDensity
+    );                                                                              //  // Print the theoretical energy
     
-    if (SHOW_BLOCK_VISUALS)
+    // Respective Symbol
+    if (VISUAL_SETTING == VISUAL_BLOCKS)
     {
         wprintf(L" (%lc)\n", heatBlockReturn(averageEnergyDensity));
     }
@@ -420,27 +447,33 @@ void showArrayStats(float sum, float initialEnergy)
     {
         printf(" (%c)\n", heatVisualsReturn(averageEnergyDensity));
     }
+
 }
 
 
-float sumArray(float field[][NODES_X]) 
-{                                                                                   // Gets the total value of an array
-    // SUM INIT
-    float sum = 0.0f;                                                               //  // Inits the sum variable
+float sumArray(float* a_field) 
+{
+    float sum = 0.0f;
+
+
     // CUMULATIVE COUNT
     for (int i = 0; i < NODES_Y; i++) 
     {
-        for (int j = 0; j < NODES_X; j++) sum += field[i][j];
-    }                                                                               //  // Replaces each field
+        for (int j = 0; j < NODES_X; j++) 
+        {
+            float value = *(a_field + i * NODES_X + j);
+            sum += value;
+        }
+    }
+    
     return sum;
 }
 
 
 char heatVisualsReturn(float value) 
 {
-    float maxValue = (totalEnergy) / numberOfPoints;                                //  // This can be calculated
-
-    float averageEnergyDensity = totalEnergy / (NODES_X*NODES_Y);                   //  // This is for when there's a bit of energy
+    float maxValue              = (totalEnergy) / numberOfPoints;                   //  // This can be calculated
+    float averageEnergyDensity  = totalEnergy / (NODES_X*NODES_Y);                  //  // This is for when there's a bit of energy
 
     // CHECK
     if (value >  (maxValue/2))              {return heat_visuals[0];}               //  // I'm aware this looks messy
@@ -461,9 +494,8 @@ char heatVisualsReturn(float value)
 
 wchar_t heatBlockReturn(float value) 
 {
-    float maxValue = (totalEnergy) / numberOfPoints;                                //  // This can be calculated
-
-    float averageEnergyDensity = totalEnergy / (NODES_X*NODES_Y);                   //  // This is for when there's a bit of energy
+    float maxValue              = (totalEnergy) / numberOfPoints;                   //  // This can be calculated
+    float averageEnergyDensity  = totalEnergy / (NODES_X*NODES_Y);                  //  // This is for when there's a bit of energy
 
     // CHECK
     if (value >  (maxValue/2))              {return block_visuals[0];}              //  // I'm aware this looks messy
