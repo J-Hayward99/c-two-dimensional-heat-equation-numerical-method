@@ -19,8 +19,8 @@ enum Visuals {
 // CONSTANTS
 // Simulation Starting Parameters
 const int SIM_TIME_DELAY_MILLI      = 1;                                            // How fast the program runs
-const int NODES_X                   = 30;                                           // Manual array size
-const int NODES_Y                   = 30;                                           // Manual array size
+const int NODES_X                   = 20;                                           // Manual array size
+const int NODES_Y                   = 20;                                           // Manual array size
 
 const int SHOW_STARTING_CONDITIONS  = FALSE;
 const int VISUAL_SETTING            = VISUAL_HEATMAP;
@@ -55,8 +55,14 @@ const int RIGHT_WALL            = NODES_X - 1;
 
 
 // LOOK UP TABLES
-const char      heat_visuals[]      = {'7', '6', '5', '4', '3', '2', '1'};
-const wchar_t   block_visuals[]     = 
+const float     percentDistribution[]   = {
+    0.90f, 0.75f, 0.50f, 0.25f, 0.20f, 
+    0.15f, 0.10f, 0.05f, 0.02f, 0.01f
+};
+const char      heatmapVisuals[]        = {
+    '7', '6', '5', '4', '3', '2', '1', '0', '#', 'x'
+};
+const wchar_t   blockVisuals[]          = 
 {
     L'\u2588', L'\u2593', 
     L'\u2592', L'\u2591'
@@ -66,6 +72,8 @@ const wchar_t   block_visuals[]     =
 
 // GLOBALS
 float   totalEnergy     = 0.0f;
+float   smallestEnergy  = 9999999999.0f;
+float   biggestEnergy   = 0.0f;
 int     nonZeroNodes    = 0;
 
 
@@ -120,11 +128,11 @@ int main()
     // Add Points
     struct Point a_Points[] = 
     {
-        // {{NODES_Y/3             , 3}                , 100.0f},
-        // {{NODES_Y/3             , (NODES_X - 4)}    , 100.0f},
-        // {{2*NODES_Y/3           , 3}                , 100.0f},
-        // {{2*NODES_Y/3           , (NODES_X - 4)}    , 100.0f},
-        // {{(2*NODES_Y/3) + 1     , (NODES_X/2)}      , 100.0f}
+        {{NODES_Y/3             , 3}                , 100.0f},
+        {{NODES_Y/3             , (NODES_X - 4)}    , 100.0f},
+        {{2*NODES_Y/3           , 3}                , 100.0f},
+        {{2*NODES_Y/3           , (NODES_X - 4)}    , 100.0f},
+        {{(2*NODES_Y/3) + 1     , (NODES_X/2)}      , 100.0f}
     };                                                                              //  // INSERT POINTS HERE
     
     // Insert Points
@@ -140,12 +148,18 @@ int main()
         totalEnergy                     += temperature;
     }
 
-    // Count Non-Zero Nodes
+    // Count Non-Zero Nodes & Find Temperature Range
     for (int index_y = 0; index_y < NODES_Y; index_y++) 
     {
         for (int index_x = 0; index_x < NODES_X; index_x++)
         {
-            if (a_startField[index_y][index_x] != 0.0f) nonZeroNodes++;
+            // Count Non-Zero Nodes
+            float currValue = a_startField[index_y][index_x];
+            if (currValue != 0.0f) nonZeroNodes++;
+            
+            // Temperature Check
+            if (currValue < smallestEnergy) smallestEnergy  = currValue;
+            if (currValue > biggestEnergy)  biggestEnergy   = currValue;
         }
     } 
 
@@ -384,7 +398,6 @@ void showArrayStats(float sum, float initialEnergy)
 {
     float deviation             = fabs((sum - initialEnergy) / initialEnergy);      //  // Percent difference of energy
     float averageEnergyDensity  = totalEnergy / (NODES_X*NODES_Y);                  //  // This is for when there's a bit of energy
-    float maxValue              = (totalEnergy) / nonZeroNodes;                     //  // This can be calculated
     
     
     // PRINT
@@ -408,8 +421,12 @@ void showArrayStats(float sum, float initialEnergy)
             printf(" (%6.1f)", averageEnergyDensity);
     }
     // Heatmap Stats
-    printf(", Max Value: %5.4f, Initially Active Nodes: %d",
-        maxValue, nonZeroNodes
+    printf("\nMax Energy: %5.4f, Min Energy: %5.4f\n",
+        biggestEnergy, smallestEnergy
+    );
+    
+    printf("Energy Range: %5.4f, Initially Active Nodes: %d", 
+    (biggestEnergy - smallestEnergy), nonZeroNodes
     );
 }
 
@@ -435,40 +452,43 @@ float sumArray(float* a_field)
 
 char heatVisualsReturn(float value) 
 {
-    // NOTE make a metric that finds the smallest and biggest value of the array, then gets a range of the value to determine a distribution. distribution is percentage between max and min
-    float maxValue              = (totalEnergy) / nonZeroNodes;                     //  // This can be calculated
-    float averageEnergyDensity  = totalEnergy / (NODES_X*NODES_Y);                  //  // This is for when there's a bit of energy
+    float distributedValue      = (
+        (value - smallestEnergy) / 
+        (biggestEnergy - smallestEnergy)
+    );
 
     // CHECK
-    if (value >  (maxValue/2))              {return heat_visuals[0];}               //  // I'm aware this looks messy
-    if (value >  (maxValue/20))             {return heat_visuals[1];}               //  // Switch cases don't work for floats
-    if (value >  (maxValue/40))             {return heat_visuals[2];}               //  // So had to do this
-    if (value >  (maxValue/60))             {return heat_visuals[3];}
-    if (value >  (maxValue/80))             {return heat_visuals[4];}
-    if (value >  (maxValue/90))             {return heat_visuals[5];}
-    if (value >  (maxValue/95))             {return heat_visuals[6];}
+    if (distributedValue > percentDistribution[0])  return heatmapVisuals[0];       //  // I'm aware this looks messy
+    if (distributedValue > percentDistribution[1])  return heatmapVisuals[1];       //  // Switch cases don't work for floats
+    if (distributedValue > percentDistribution[2])  return heatmapVisuals[2];       //  // So had to do this
+    if (distributedValue > percentDistribution[3])  return heatmapVisuals[3];
+    if (distributedValue > percentDistribution[4])  return heatmapVisuals[4];
+    if (distributedValue > percentDistribution[5])  return heatmapVisuals[5];
+    if (distributedValue > percentDistribution[6])  return heatmapVisuals[6];
     
-    if (value >  (averageEnergyDensity))    {return '#';}                           //  // End State
-    
-    if (value >= 1.0f)                      {return '0';}
-    if (value >= 0.5f)                      {return 'x';}                           //  // Small case
-    if (value >= 0.0f)                      {return '.';}                           //  // Negligible case
-    else                                    {return 'E';}                           //  // Error case
+    if (distributedValue > percentDistribution[7])  return heatmapVisuals[7];
+    if (distributedValue > percentDistribution[8])  return heatmapVisuals[8];       //  // Small case
+    if (distributedValue > percentDistribution[9])  return heatmapVisuals[9];       //  // Small case
+    if (value >= 0.0f)                              return '.';                     //  // Negligible case
+    else                                            return 'e';                     //  // Error case
 }
 
 wchar_t heatBlockReturn(float value) 
 {
-    float maxValue              = (totalEnergy) / nonZeroNodes;                     //  // This can be calculated
-    float averageEnergyDensity  = totalEnergy / (NODES_X*NODES_Y);                  //  // This is for when there's a bit of energy
-
+    float distributedValue      = (
+        (value - smallestEnergy) / 
+        (biggestEnergy - smallestEnergy)
+    );
+    
     // CHECK
-    if (value >  (maxValue/2))              {return block_visuals[0];}              //  // I'm aware this looks messy
-    if (value >  (maxValue/40))             {return block_visuals[1];}              //  // Switch cases don't work for floats
-    if (value >  (maxValue/80))             {return block_visuals[2];}              //  // So had to do this
-    
-    if (value >  (averageEnergyDensity))    {return '#';}                           //  // End State
-    
-    if (value >= 0.5f)                      {return block_visuals[3];}              //  // Small case
-    if (value >= 0.0f)                      {return '.';}                           //  // Negligible case
-    else                                    {return 'E';}                           //  // Error case
+    if (distributedValue > percentDistribution[0])  return heatmapVisuals[0];       //  // I'm aware this looks messy
+    if (distributedValue > percentDistribution[2])  return heatmapVisuals[1];       //  // Switch cases don't work for floats
+    if (distributedValue > percentDistribution[4])  return heatmapVisuals[2];       //  // So had to do this
+    if (distributedValue > percentDistribution[6])  return heatmapVisuals[3];
+
+    if (distributedValue > percentDistribution[7])   return '#';
+    if (distributedValue > percentDistribution[8])   return 'x';                    //  // Small case
+    if (distributedValue > percentDistribution[9])   return '0';                    //  // Small case
+    if (value >= 0.0f)                               return '.';                    //  // Negligible case
+    else                                             return 'E';                    //  // Error case
 }
