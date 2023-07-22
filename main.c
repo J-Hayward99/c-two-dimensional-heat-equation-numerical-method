@@ -33,7 +33,7 @@ const float D_SPACE_SQR         = DELTA_SPACE * DELTA_SPACE;                    
 // Ambient Temperatures
 const float BAR_L_START_TEMP    = 100.0f;                                           // Temp at N=0
 const float BAR_AMBIENT_TEMP    = 40.0f;                                            // Temp between N=1 and N=N_end-1
-const float BAR_L_END_TEMP      = 100.0f;                                            // Temp at N=N_end
+const float BAR_L_END_TEMP      = 100.0f;                                           // Temp at N=N_end
 
 // Points of Temperature
 struct Point
@@ -59,9 +59,11 @@ const float     percentDistribution[]   = {
     0.90f, 0.75f, 0.50f, 0.25f, 0.20f, 
     0.15f, 0.10f, 0.05f, 0.02f, 0.01f
 };
+
 const char      heatmapVisuals[]        = {
     '7', '6', '5', '4', '3', '2', '1', '0', '#', 'x'
 };
+
 const wchar_t   blockVisuals[]          = 
 {
     L'\u2588', L'\u2593', 
@@ -306,17 +308,13 @@ void printArray(float* a_field)
 
             // DISPLAY DEVELOPMENT
             if (index_x == 0) 
-            {
                 printf("[ %c, ", heatVisualsReturn(value));
-            }
+            
             else if (index_x == (NODES_X - 1)) 
-            {
                 printf("%c ]\n", heatVisualsReturn(value));
-            }
+            
             else 
-            {
                 printf("%c, ", heatVisualsReturn(value));
-            }
         }
     }
 }
@@ -342,17 +340,13 @@ void printBlockArray(float* a_field)
 
             // DISPLAY DEVELOPMENT
             if (index_x == 0) 
-            {
                 wprintf(L"[ %lc", heatBlockReturn(value));
-            }
+            
             else if (index_x == (NODES_X - 1)) 
-            {
                 wprintf(L"%lc ]\n", heatBlockReturn(value));
-            }
+            
             else 
-            {
                 wprintf(L"%lc", heatBlockReturn(value));
-            }
         }
     }
 }
@@ -378,17 +372,13 @@ void printRawArray(float* a_field)
 
             // DISPLAY DEVELOPMENT
             if (index_x == 0) 
-            {
                 printf("[ %-6.1f, ", value);
-            }
+            
             else if (index_x == (NODES_X - 1)) 
-            {
                 printf("%-6.1f ]\n", value);
-            }
+            
             else 
-            {
                 printf("%-6.1f, ", value);
-            }
         }
     }
 }
@@ -479,7 +469,7 @@ wchar_t heatBlockReturn(float value)
         (value - smallestEnergy) / 
         (biggestEnergy - smallestEnergy)
     );
-    
+
     // CHECK
     if (distributedValue > percentDistribution[0])  return heatmapVisuals[0];       //  // I'm aware this looks messy
     if (distributedValue > percentDistribution[2])  return heatmapVisuals[1];       //  // Switch cases don't work for floats
