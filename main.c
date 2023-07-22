@@ -18,9 +18,9 @@ enum Visuals {
 
 // CONSTANTS
 // Simulation Starting Parameters
-const int SIM_TIME_DELAY_MILLI      = 20;                                           // How fast the program runs
-const int NODES_X                   = 15;                                           // Manual array size
-const int NODES_Y                   = 15;                                           // Manual array size
+const int SIM_TIME_DELAY_MILLI      = 1;                                            // How fast the program runs
+const int NODES_X                   = 30;                                           // Manual array size
+const int NODES_Y                   = 30;                                           // Manual array size
 
 const int SHOW_STARTING_CONDITIONS  = FALSE;
 const int VISUAL_SETTING            = VISUAL_HEATMAP;
@@ -31,9 +31,9 @@ const float DELTA_SPACE         = 0.01f;                                        
 const float D_SPACE_SQR         = DELTA_SPACE * DELTA_SPACE;                        // Used as h^2
 
 // Ambient Temperatures
-const float BAR_L_START_TEMP    = 0.0f;                                             // Temp at N=0
-const float BAR_AMBIENT_TEMP    = 0.0f;                                             // Temp between N=1 and N=N_end-1
-const float BAR_L_END_TEMP      = 0.0f;                                             // Temp at N=N_end
+const float BAR_L_START_TEMP    = 100.0f;                                           // Temp at N=0
+const float BAR_AMBIENT_TEMP    = 40.0f;                                            // Temp between N=1 and N=N_end-1
+const float BAR_L_END_TEMP      = 100.0f;                                            // Temp at N=N_end
 
 // Points of Temperature
 struct Point
@@ -47,21 +47,26 @@ const float DELTA_TIME          = 0.040f;                                       
 const float FINAL_TIME          = 600.0f;                                           // Final time
 
 
+// DERIVED CONSTANTS
+const int TOP_WALL              = 0;
+const int BOTTOM_WALL           = NODES_Y - 1;
+const int LEFT_WALL             = 0;
+const int RIGHT_WALL            = NODES_X - 1;
+
 
 // LOOK UP TABLES
 const char      heat_visuals[]      = {'7', '6', '5', '4', '3', '2', '1'};
-const wchar_t   block_visuals[]     = {
-    L'\u2588', 
-    L'\u2593', 
-    L'\u2592', 
-    L'\u2591'
+const wchar_t   block_visuals[]     = 
+{
+    L'\u2588', L'\u2593', 
+    L'\u2592', L'\u2591'
 };
 
 
 
 // GLOBALS
 float   totalEnergy     = 0.0f;
-int     numberOfPoints  = 0;
+int     nonZeroNodes    = 0;
 
 
 // FUNCTION DECLARATION
@@ -94,52 +99,36 @@ int main()
     // INITIAL CONDITIONS ARRAY
     float a_startField[NODES_Y][NODES_X];                                           //  // Base field
     
-    for (int i = 0; i < NODES_Y; i++) 
+    for (int index_y = 0; index_y < NODES_Y; index_y++) 
     {
-        for (int j = 0; j < NODES_X; j++) 
+        for (int index_x = 0; index_x < NODES_X; index_x++) 
         {
-                if (NODES_X == 1) 
-                {
-                    a_startField[i][j]  = BAR_L_START_TEMP;
-                    continue; 
-                }
-
-                if (NODES_Y == 1) 
-                {
-                    a_startField[i][j]  = BAR_L_START_TEMP;
-                    continue;
-                }
-
-
-            if (j == 0) 
-            {
-                a_startField[i][j]  = BAR_L_START_TEMP;                     
-            }
-            else if (j == (NODES_X - 1)) 
-            {
-                a_startField[i][j]  = BAR_L_END_TEMP;
-            }  
+            if (index_x == LEFT_WALL) 
+                a_startField[index_y][LEFT_WALL]    = BAR_L_START_TEMP;                     
+            
+            else if (index_x == RIGHT_WALL) 
+                a_startField[index_y][RIGHT_WALL]   = BAR_L_END_TEMP;
+            
             else 
-            {
-                a_startField[i][j]  = BAR_AMBIENT_TEMP;
-            }
-
+                a_startField[index_y][index_x]      = BAR_AMBIENT_TEMP;
+            
         }
     }
+    totalEnergy += BAR_L_START_TEMP + BAR_AMBIENT_TEMP + BAR_L_END_TEMP;
     
     // POINTS AND STATS
     // Add Points
     struct Point a_Points[] = 
     {
-        {{NODES_Y/3             , 3}                , 100.0f},
-        {{NODES_Y/3             , (NODES_X - 4)}    , 100.0f},
-        {{2*NODES_Y/3           , 3}                , 100.0f},
-        {{2*NODES_Y/3           , (NODES_X - 4)}    , 100.0f},
-        {{(2*NODES_Y/3) + 1     , (NODES_X/2)}      , 100.0f}
+        // {{NODES_Y/3             , 3}                , 100.0f},
+        // {{NODES_Y/3             , (NODES_X - 4)}    , 100.0f},
+        // {{2*NODES_Y/3           , 3}                , 100.0f},
+        // {{2*NODES_Y/3           , (NODES_X - 4)}    , 100.0f},
+        // {{(2*NODES_Y/3) + 1     , (NODES_X/2)}      , 100.0f}
     };                                                                              //  // INSERT POINTS HERE
     
     // Insert Points
-    numberOfPoints  = sizeof(a_Points)/sizeof(a_Points[0]);
+    int numberOfPoints  = sizeof(a_Points)/sizeof(a_Points[0]);
     
     for (int i = 0; i < numberOfPoints; i++)
     {
@@ -147,9 +136,18 @@ int main()
         int point_y                     = a_Points[i].COORDS[1];
         float temperature               = a_Points[i].TEMPERATURE_KELVIN;
         
-        a_startField[point_x][point_y]  = temperature;
+        a_startField[point_y][point_x]  = temperature;
         totalEnergy                     += temperature;
     }
+
+    // Count Non-Zero Nodes
+    for (int index_y = 0; index_y < NODES_Y; index_y++) 
+    {
+        for (int index_x = 0; index_x < NODES_X; index_x++)
+        {
+            if (a_startField[index_y][index_x] != 0.0f) nonZeroNodes++;
+        }
+    } 
 
     
     // FIELDS
@@ -158,11 +156,11 @@ int main()
 
 
     // New Field
-    float a_newField[NODES_X][NODES_Y];                                             //  // Frame of timestep k+1
+    float a_newField[NODES_Y][NODES_X];                                             //  // Frame of timestep k+1
     memcpy(&a_newField, &a_startField, sizeof(int)*NODES_X*NODES_Y);
 
     // Current Field
-    float a_curField[NODES_X][NODES_Y];                                             //  // Frame of timestep k
+    float a_curField[NODES_Y][NODES_X];                                             //  // Frame of timestep k
     memcpy(&a_curField, &a_startField, sizeof(int)*NODES_X*NODES_Y);
     
     
@@ -232,68 +230,24 @@ int main()
 
 
         // CALCULATION LOOP
-        for (int i = 0; i < NODES_Y; i++) 
+        for (int index_y = 0; index_y < NODES_Y; index_y++) 
         {
-            for (int j = 0; j < NODES_X; j++) 
+            for (int index_x = 0; index_x < NODES_X; index_x++) 
             {
-                // BOUNDARIES LEFT-RIGHT
-                // Left Wall
-                if (j == 0) 
-                {
-                    aveTempLeft     = a_curField[i][j];                             //  // Ghost node = current node
-                    aveTempRight    = a_curField[i][j+1];
-                }
-
-                // Right Wall
-                else if (j == (NODES_X-1)) 
-                {
-                    aveTempLeft     = a_curField[i][j-1];
-                    aveTempRight    = a_curField[i][j];                             //  // Ghost node = current node
-                }
-
-                // Remaining Elements (Middle)
-                else
-                {
-                    aveTempLeft     = a_curField[i][j-1];
-                    aveTempRight    = a_curField[i][j+1];
-                }
-
-
-                //BOUNDARIES UP-DOWN
-                // Top Wall
-                if (i == 0) 
-                {
-                    aveTempAbove    = a_curField[i][j];                             //  // Ghost node = current node
-                    aveTempBelow    = a_curField[i+1][j];
-                }
-
-                // Bottom Wall
-                else if (i == (NODES_Y-1)) 
-                {
-                    aveTempAbove    = a_curField[i-1][j];
-                    aveTempBelow    = a_curField[i][j];                             //  // Ghost node = current node
-                }
-
-                // Remaining Elements (Middle)
-                else 
-                {
-                    aveTempAbove    = a_curField[i-1][j];
-                    aveTempBelow    = a_curField[i+1][j];
-                }
-
-
-                // LIMIT CONDITIONS
-                if (NODES_X == 1) 
-                {
-                    aveTempLeft     = 0;
-                    aveTempRight    = 0;  
-                }
-                if (NODES_Y == 1) 
-                {
-                    aveTempAbove    = 0;
-                    aveTempBelow    = 0;  
-                }
-
+                float currElementValue = a_curField[index_y][index_x];
+                
+                aveTempLeft     = a_curField[index_y][index_x - 1];
+                aveTempRight    = a_curField[index_y][index_x + 1];
+                
+                aveTempAbove    = a_curField[index_y - 1][index_x];
+                aveTempBelow    = a_curField[index_y + 1][index_x];
+                
+                // BOUNDARIES (Ghost node = current node)
+                if (index_x == LEFT_WALL)   aveTempLeft     = currElementValue;
+                if (index_x == RIGHT_WALL)  aveTempRight    = currElementValue;
+                
+                if (index_y == TOP_WALL)    aveTempAbove    = currElementValue;
+                if (index_y == BOTTOM_WALL) aveTempBelow    = currElementValue;
 
                 // CALCULATIONS
                 // Temperature Driver
@@ -303,11 +257,12 @@ int main()
                     / ( D_SPACE_SQR ) * ALPHA * DELTA_TIME;
                 
                 // Coefficient
-                coefficient = 1 - (4*DELTA_TIME*ALPHA/D_SPACE_SQR);
+                coefficient = 1 - (4 * DELTA_TIME*ALPHA / D_SPACE_SQR);
 
 
                 // ARRAY UPDATE
-                a_newField[i][j] = coefficient * a_curField[i][j] + dTi_dt;         //  // Last value + (temperature difference * the time difference)
+                float temp_diff = coefficient * a_curField[index_y][index_x];
+                a_newField[index_y][index_x] = temp_diff + dTi_dt;                  //  // Last value + (temperature difference * the time difference)
             }
         }
     }
@@ -319,11 +274,11 @@ int main()
 // FUNCTION DEFINITIONS
 void printArray(float* a_field) 
 {
-    for (int i = 0; i < NODES_Y; i++) 
+    for (int index_y = 0; index_y < NODES_Y; index_y++) 
     {
-        for (int j = 0; j < NODES_X; j++) 
+        for (int index_x = 0; index_x < NODES_X; index_x++) 
         {
-            float value = *(a_field + i * NODES_X + j);
+            float value = *(a_field + index_y * NODES_X + index_x);
             
             // NEGATIVE VALUE HANDLING
             if (value < 0.0f) value = 0.0f;                                         //  // Avoids negative numbers due to small floating point errors
@@ -336,11 +291,11 @@ void printArray(float* a_field)
             }
 
             // DISPLAY DEVELOPMENT
-            if (j == 0) 
+            if (index_x == 0) 
             {
                 printf("[ %c, ", heatVisualsReturn(value));
             }
-            else if (j == (NODES_X - 1)) 
+            else if (index_x == (NODES_X - 1)) 
             {
                 printf("%c ]\n", heatVisualsReturn(value));
             }
@@ -355,11 +310,11 @@ void printArray(float* a_field)
 
 void printBlockArray(float* a_field) 
 {
-    for (int i = 0; i < NODES_Y; i++) 
+    for (int index_y = 0; index_y < NODES_Y; index_y++) 
     {
-        for (int j = 0; j < NODES_X; j++) 
+        for (int index_x = 0; index_x < NODES_X; index_x++) 
         {
-            float value = *(a_field + i * NODES_X + j);
+            float value = *(a_field + index_y * NODES_X + index_x);
 
             // NEGATIVE VALUE HANDLING
             if (value < 0.0f) value = 0.0f;
@@ -372,11 +327,11 @@ void printBlockArray(float* a_field)
             }
 
             // DISPLAY DEVELOPMENT
-            if (j == 0) 
+            if (index_x == 0) 
             {
                 wprintf(L"[ %lc", heatBlockReturn(value));
             }
-            else if (j == (NODES_X - 1)) 
+            else if (index_x == (NODES_X - 1)) 
             {
                 wprintf(L"%lc ]\n", heatBlockReturn(value));
             }
@@ -391,11 +346,11 @@ void printBlockArray(float* a_field)
 
 void printRawArray(float* a_field) 
 {
-    for (int i = 0; i < NODES_Y; i++) 
+    for (int index_y = 0; index_y < NODES_Y; index_y++) 
     {
-        for (int j = 0; j < NODES_X; j++) 
+        for (int index_x = 0; index_x < NODES_X; index_x++) 
         {
-            float value = *(a_field + i * NODES_X + j);
+            float value = *(a_field + index_y * NODES_X + index_x);
 
             // NEGATIVE VALUE HANDLING
             if (value < 0.0f) value = 0.0f;
@@ -408,11 +363,11 @@ void printRawArray(float* a_field)
             }
 
             // DISPLAY DEVELOPMENT
-            if (j == 0) 
+            if (index_x == 0) 
             {
                 printf("[ %-6.1f, ", value);
             }
-            else if (j == (NODES_X - 1)) 
+            else if (index_x == (NODES_X - 1)) 
             {
                 printf("%-6.1f ]\n", value);
             }
@@ -429,26 +384,33 @@ void showArrayStats(float sum, float initialEnergy)
 {
     float deviation             = fabs((sum - initialEnergy) / initialEnergy);      //  // Percent difference of energy
     float averageEnergyDensity  = totalEnergy / (NODES_X*NODES_Y);                  //  // This is for when there's a bit of energy
+    float maxValue              = (totalEnergy) / nonZeroNodes;                     //  // This can be calculated
     
     
     // PRINT
     // Main
-    printf("\nEnergy: %-5f, deviation: %%%6.3f\n", round(sum), deviation*100);      //  // Prints the actual energy
+    printf("\nEnergy: %-5f, deviation: %6.3f%%\n", round(sum), deviation*100);      //  // Prints the actual energy
     printf(
         "Intended Energy: %5.4f, Average Energy Density: %5.4f",
         initialEnergy, averageEnergyDensity
     );                                                                              //  // Print the theoretical energy
     
     // Respective Symbol
-    if (VISUAL_SETTING == VISUAL_BLOCKS)
+    switch (VISUAL_SETTING)
     {
-        wprintf(L" (%lc)\n", heatBlockReturn(averageEnergyDensity));
+        case VISUAL_BLOCKS:
+            wprintf(L" (%lc)", heatBlockReturn(averageEnergyDensity));
+            break;
+        case VISUAL_HEATMAP:
+            printf(" (%c)", heatVisualsReturn(averageEnergyDensity));
+            break;
+        default:
+            printf(" (%6.1f)", averageEnergyDensity);
     }
-    else
-    {
-        printf(" (%c)\n", heatVisualsReturn(averageEnergyDensity));
-    }
-
+    // Heatmap Stats
+    printf(", Max Value: %5.4f, Initially Active Nodes: %d",
+        maxValue, nonZeroNodes
+    );
 }
 
 
@@ -473,7 +435,8 @@ float sumArray(float* a_field)
 
 char heatVisualsReturn(float value) 
 {
-    float maxValue              = (totalEnergy) / numberOfPoints;                   //  // This can be calculated
+    // NOTE make a metric that finds the smallest and biggest value of the array, then gets a range of the value to determine a distribution. distribution is percentage between max and min
+    float maxValue              = (totalEnergy) / nonZeroNodes;                     //  // This can be calculated
     float averageEnergyDensity  = totalEnergy / (NODES_X*NODES_Y);                  //  // This is for when there's a bit of energy
 
     // CHECK
@@ -495,7 +458,7 @@ char heatVisualsReturn(float value)
 
 wchar_t heatBlockReturn(float value) 
 {
-    float maxValue              = (totalEnergy) / numberOfPoints;                   //  // This can be calculated
+    float maxValue              = (totalEnergy) / nonZeroNodes;                     //  // This can be calculated
     float averageEnergyDensity  = totalEnergy / (NODES_X*NODES_Y);                  //  // This is for when there's a bit of energy
 
     // CHECK
